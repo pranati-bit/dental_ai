@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Braces need: photo demo</title>
+<style>
+  :root {
+    --bg: #f7f6f2; --card: #ffffff; --ink: #1f2328; --muted: #5f6b76;
+    --line: #e2e0d8; --accent: #2b6cb0; --warn-bg: #fff6e0; --warn-ink: #7a4d00;
+    --c0: #3c9d6b; --c1: #d69e2e; --c2: #c05621;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15181c; --card: #1e2329; --ink: #e8eaed; --muted: #9aa5b1;
+      --line: #2e353d; --accent: #63a4e8; --warn-bg: #3a2d10; --warn-ink: #f3d38a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15181c; --card: #1e2329; --ink: #e8eaed; --muted: #9aa5b1;
+    --line: #2e353d; --accent: #63a4e8; --warn-bg: #3a2d10; --warn-ink: #f3d38a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 18px; margin-bottom: 16px; }
+  .warn { background: var(--warn-bg); color: var(--warn-ink); border-radius: 10px;
+          padding: 12px 14px; margin-bottom: 16px; font-size: 0.95rem; }
+  .drop { display: block; border: 2px dashed var(--line); border-radius: 12px; padding: 26px 16px;
+          text-align: center; cursor: pointer; color: var(--muted); }
+  .drop.over { border-color: var(--accent); color: var(--ink); }
+  .drop input { display: none; }
+  .btn { display: inline-block; margin-top: 10px; padding: 8px 14px; border-radius: 8px;
+         background: var(--accent); color: #fff; border: 0; font: inherit; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } }
+  canvas.preview { width: 100%; image-rendering: pixelated; border-radius: 8px;
+                   border: 1px solid var(--line); background: #000; }
+  .bar-row { margin: 10px 0; }
+  .bar-label { display: flex; justify-content: space-between; font-size: 0.95rem; }
+  .bar { height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+  .bar > div { height: 100%; border-radius: 6px; transition: width .3s; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+  th, td { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  .muted { color: var(--muted); font-size: 0.92rem; }
+  .hidden { display: none; }
+  ul { padding-left: 20px; margin: 6px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Do these teeth need braces?</h1>
+  <p class="sub">Upload a frontal photo of teeth. A small neural network (built from scratch in NumPy)
+  estimates whether braces are likely needed. Everything runs in your browser; the photo is not uploaded.</p>
+
+  <div class="warn">
+    <strong>Research demo, not a diagnosis.</strong> The model was trained on 192 patients and scored
+    about two thirds correct on 39 unseen patients. The labels come from our own rule for counting
+    rotated and misaligned front teeth. Ask a dentist or orthodontist for a real assessment.
+  </div>
+
+  <div class="card">
+    <label class="drop" id="drop">
+      <strong>Drop a frontal teeth photo here</strong><br>
+      or click to choose a file (JPG or PNG)
+      <input type="file" id="file" accept="image/jpeg,image/png">
+    </label>
+    <p class="muted" id="status"></p>
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <div class="grid">
+      <div>
+        <h2>What the model sees</h2>
+        <canvas class="preview" id="preview" width="144" height="64"></canvas>
+        <p class="muted">Teeth area, grayscale, contrast-equalized, resized to 144 × 64.</p>
+      </div>
+      <div>
+        <h2>Prediction</h2>
+        <div id="verdict" style="font-size:1.1rem;margin-bottom:6px;"></div>
+        <div id="bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>How well does it work?</h2>
+    <p class="muted" id="evalText"></p>
+    <div style="overflow-x:auto;">
+      <table id="cmTable"></table>
+    </div>
+    <p class="muted">Rows: the true label. Columns: what the model predicted. Chance level is 33%.</p>
+  </div>
+
+  <div class="card">
+    <h2>How it works</h2>
+    <ul>
+      <li>Crop to the teeth area, convert to grayscale, and equalize contrast.</li>
+      <li>Principal component analysis (PCA) turns the 9,216 pixel values into 117 numbers.</li>
+      <li>A neural network with two hidden layers (16 and 8 units) outputs three probabilities.</li>
+    </ul>
+    <p class="muted">Labels: frontal teeth with 0 rotated or misaligned teeth are "no need",
+    1 or 2 are "borderline", and 3 or more are "braces likely". Patients who already wear
+    appliances were excluded.</p>
+  </div>
+</main>
+
+<script>
+const M = __MODEL_JSON__;
+
+// ---------- decoding helpers ----------
+function b64ToF32(s) {
+  const bin = atob(s), u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return new Float32Array(u8.buffer);
+}
+const PCA_MEAN = b64ToF32(M.pca_mean);
+const PCA_COMP = b64ToF32(M.pca_components);   // k x D, row-major
+const MU = b64ToF32(M.mu);
+const LAYERS = M.layers.map(L => ({ inp: L.inp, out: L.out, W: b64ToF32(L.W), b: b64ToF32(L.b) }));
+
+// ---------- image steps, matching the Python pipeline ----------
+// PIL "L" conversion (ITU-R 601-2 luma, integer math)
+function toGray(data, n) {
+  const g = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const r = data[4 * i], gg = data[4 * i + 1], b = data[4 * i + 2];
+    g[i] = (r * 19595 + gg * 38470 + b * 7471 + 0x8000) >> 16;
+  }
+  return g;
+}
+
+// PIL bicubic (a = -0.5) resampling coefficients, with the same support rules as Pillow
+function bicubic(x) {
+  const a = -0.5; x = Math.abs(x);
+  if (x < 1) return ((a + 2) * x - (a + 3)) * x * x + 1;
+  if (x < 2) return (((x - 5) * x + 8) * x - 4) * a;
+  return 0;
+}
+function coeffs(inSize, outSize) {
+  const scale = inSize / outSize, fs = Math.max(scale, 1), support = 2 * fs, out = [];
+  for (let x = 0; x < outSize; x++) {
+    const center = (x + 0.5) * scale;
+    const xmin = Math.max(Math.trunc(center - support + 0.5), 0);
+    const xmax = Math.min(Math.trunc(center + support + 0.5), inSize) - xmin;
+    const w = []; let sum = 0;
+    for (let j = 0; j < xmax; j++) { const v = bicubic((j + xmin - center + 0.5) / fs); w.push(v); sum += v; }
+    for (let j = 0; j < w.length; j++) w[j] /= sum;
+    out.push({ xmin, w });
+  }
+  return out;
+}
+function resize(src, sw, sh, dw, dh) {
+  const cx = coeffs(sw, dw), cy = coeffs(sh, dh);
+  const tmp = new Uint8Array(dw * sh);
+  for (let y = 0; y < sh; y++)                         // horizontal pass
+    for (let x = 0; x < dw; x++) {
+      const { xmin, w } = cx[x]; let s = 0;
+      for (let j = 0; j < w.length; j++) s += w[j] * src[y * sw + xmin + j];
+      tmp[y * dw + x] = Math.min(255, Math.max(0, Math.round(s)));
+    }
+  const out = new Uint8Array(dw * dh);
+  for (let y = 0; y < dh; y++) {                       // vertical pass
+    const { xmin: ymin, w } = cy[y];
+    for (let x = 0; x < dw; x++) {
+      let s = 0;
+      for (let j = 0; j < w.length; j++) s += w[j] * tmp[(ymin + j) * dw + x];
+      out[y * dw + x] = Math.min(255, Math.max(0, Math.round(s)));
+    }
+  }
+  return out;
+}
+
+// PIL ImageOps.equalize, same lookup-table rule
+function equalize(px) {
+  const h = new Array(256).fill(0);
+  for (const v of px) h[v]++;
+  const nz = h.filter(v => v > 0);
+  let lut = Array.from({ length: 256 }, (_, i) => i);
+  if (nz.length > 1) {
+    const total = nz.reduce((a, b) => a + b, 0);
+    const step = Math.floor((total - nz[nz.length - 1]) / 255);
+    if (step) {
+      lut = []; let n = Math.floor(step / 2);
+      for (let i = 0; i < 256; i++) { lut.push(Math.floor(n / step)); n += h[i]; }
+    }
+  }
+  const out = new Uint8Array(px.length);
+  for (let i = 0; i < px.length; i++) out[i] = lut[px[i]];
+  return out;
+}
+
+// learned teeth box: tiny colour image -> 4 numbers (left, top, right, bottom) as fractions
+const BOX = M.box;
+const BOX_W = b64ToF32(BOX.W), BOX_B = b64ToF32(BOX.b), BOX_MU = b64ToF32(BOX.mu);
+function predictBox(img) {
+  const [bw, bh] = BOX.size;
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const d = ctx.getImageData(0, 0, W, H).data;
+  // shrink each colour channel with the same bicubic resize Pillow uses in training
+  const chans = [0, 1, 2].map(ch => {
+    const plane = new Uint8Array(W * H);
+    for (let p = 0; p < W * H; p++) plane[p] = d[4 * p + ch];
+    return resize(plane, W, H, bw, bh);
+  });
+  const x = new Float32Array(bw * bh * 3);
+  for (let p = 0; p < bw * bh; p++)
+    for (let ch = 0; ch < 3; ch++) x[p * 3 + ch] = chans[ch][p] / 255;
+  const out = [0, 0, 0, 0];
+  for (let j = 0; j < 4; j++) {
+    let s = BOX_B[j];
+    for (let i = 0; i < x.length; i++) s += (x[i] - BOX_MU[i]) * BOX_W[i * 4 + j];
+    out[j] = s;
+  }
+  const pad = BOX.pad;
+  const l = Math.max(0, Math.min(1, out[0])) - pad, t = Math.max(0, Math.min(1, out[1])) - pad;
+  const r = Math.max(0, Math.min(1, out[2])) + pad, b = Math.max(0, Math.min(1, out[3])) + pad;
+  return [Math.max(0, l), Math.max(0, t), Math.min(1, r), Math.min(1, b)];
+}
+
+// full preprocessing: image element -> 9216 floats in [0,1] + a preview canvas
+function preprocess(img) {
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, W, H).data;
+  let g = toGray(data, W * H);
+  // find the teeth automatically (learned box), then keep only that area
+  const [l, t, r, b] = predictBox(img);
+  const x0 = Math.trunc(l * W), y0 = Math.trunc(t * H), x1 = Math.trunc(r * W), y1 = Math.trunc(b * H);
+  const cwid = x1 - x0, chei = y1 - y0, cropped = new Uint8Array(cwid * chei);
+  for (let y = 0; y < chei; y++) for (let x = 0; x < cwid; x++) cropped[y * cwid + x] = g[(y0 + y) * W + x0 + x];
+  const small = resize(cropped, cwid, chei, M.W, M.H);
+  const eq = equalize(small);
+  const x = new Float32Array(eq.length);
+  for (let i = 0; i < eq.length; i++) x[i] = eq[i] / 255;
+  return { x, eq };
+}
+
+// ---------- model ----------
+function predict(x) {
+  const D = M.D, K = M.k;
+  const z = new Float32Array(K);
+  for (let k = 0; k < K; k++) {
+    let s = 0; const off = k * D;
+    for (let d = 0; d < D; d++) s += (x[d] - PCA_MEAN[d]) * PCA_COMP[off + d];
+    z[k] = (s - MU[k]) / M.sd;
+  }
+  let a = z;
+  LAYERS.forEach((L, li) => {
+    const out = new Float32Array(L.out);
+    for (let j = 0; j < L.out; j++) {
+      let s = L.b[j];
+      for (let i = 0; i < L.inp; i++) s += a[i] * L.W[i * L.out + j];
+      out[j] = li < LAYERS.length - 1 ? Math.max(0, s) : s;
+    }
+    a = out;
+  });
+  const mx = Math.max(...a), e = Array.from(a, v => Math.exp(v - mx)), sum = e.reduce((p, q) => p + q, 0);
+  return e.map(v => v / sum);
+}
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+const COLORS = ["var(--c0)", "var(--c1)", "var(--c2)"];
+const NICE = { no_need: "No need", borderline: "Borderline", braces_likely: "Braces likely" };
+
+function show(file) {
+  if (!file) return;
+  $("status").textContent = "Working on " + file.name + " ...";
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const { x, eq } = preprocess(img);
+    const cv = $("preview"), cx = cv.getContext("2d"), id = cx.createImageData(M.W, M.H);
+    for (let i = 0; i < eq.length; i++) { id.data[4*i] = id.data[4*i+1] = id.data[4*i+2] = eq[i]; id.data[4*i+3] = 255; }
+    cx.putImageData(id, 0, 0);
+    const p = predict(x);
+    const best = p.indexOf(Math.max(...p));
+    $("verdict").innerHTML = "<strong>" + NICE[M.classes[best]] + "</strong> (" + Math.round(p[best] * 100) + "% model confidence)";
+    $("bars").innerHTML = M.classes.map((c, i) =>
+      '<div class="bar-row"><div class="bar-label"><span>' + NICE[c] + '</span><span>' + Math.round(p[i] * 100) + '%</span></div>' +
+      '<div class="bar"><div style="width:' + (p[i] * 100).toFixed(1) + '%;background:' + COLORS[i] + '"></div></div></div>').join("");
+    $("resultCard").dataset.probs = p.map(v => v.toFixed(4)).join(",");
+    $("resultCard").dataset.label = M.classes[best];
+    $("resultCard").classList.remove("hidden");
+    $("status").textContent = "Done. Try another photo any time.";
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { $("status").textContent = "Could not read that file. Please use a JPG or PNG."; };
+  img.src = url;
+}
+
+const E = M.eval;
+$("evalText").textContent = "Tested on " + E.n_test + " patients the model had not seen during training (" +
+  E.n_train + " used for training). Overall accuracy: " + Math.round(E.accuracy * 100) + "%.";
+let t = "<tr><th>True \\ predicted</th>" + M.classes.map(c => "<th>" + NICE[c] + "</th>").join("") + "</tr>";
+E.confusion.forEach((row, i) => {
+  t += "<tr><td>" + NICE[M.classes[i]] + "</td>" + row.map((v, j) =>
+    '<td style="' + (i === j ? "font-weight:700;" : "") + '">' + v + "</td>").join("") + "</tr>";
+});
+$("cmTable").innerHTML = t;
+
+$("file").addEventListener("change", e => show(e.target.files[0]));
+const drop = $("drop");
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => show(e.dataTransfer.files[0]));
+</script>
+</body>
+</html>

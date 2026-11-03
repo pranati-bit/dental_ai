@@ -1,0 +1,14 @@
+{
+  "photo": "/home/claude/work/orig/braces_proj_code/data/pics/test/2018.64/2018.08.28/201864201808281.JPG",
+  "p_crowding": 0.124,
+  "prediction": "no crowding",
+  "strongest_support": "upper centre part of the teeth row (as seen in the photo)",
+  "teeth_box_fractions": [
+    0.16,
+    0.364,
+    0.832,
+    0.664
+  ],
+  "note": "Crowding here means 'rotated or misaligned front teeth' (a proxy). The model is weak (test AUC about 0.7), so read the heat map as 'what the model looked at', not as proof of crowding.",
+  "figure": "results/explain/201864201808281_crowding.png"
+}

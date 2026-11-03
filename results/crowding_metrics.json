@@ -1,0 +1,47 @@
+{
+  "definition": "crowding proxy = problem_teeth >= 1 (rotated TT or misaligned TM front teeth)",
+  "train": {
+    "n": 192,
+    "positives": 128
+  },
+  "val": {
+    "n": 45,
+    "accuracy": 0.622,
+    "balanced_accuracy": 0.583,
+    "sensitivity": 0.7,
+    "specificity": 0.467,
+    "auc": 0.649,
+    "majority_baseline_accuracy": 0.667,
+    "confusion": [
+      [
+        7,
+        8
+      ],
+      [
+        9,
+        21
+      ]
+    ]
+  },
+  "test": {
+    "n": 39,
+    "accuracy": 0.641,
+    "balanced_accuracy": 0.635,
+    "sensitivity": 0.654,
+    "specificity": 0.615,
+    "auc": 0.701,
+    "majority_baseline_accuracy": 0.667,
+    "confusion": [
+      [
+        8,
+        5
+      ],
+      [
+        9,
+        17
+      ]
+    ]
+  },
+  "train_accuracy": 1.0,
+  "note": "Small data: 39 test patients means each error moves accuracy by about 2.6 points. Treat these as a pipeline check, not as clinical accuracy."
+}
