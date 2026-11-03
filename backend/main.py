@@ -17,13 +17,14 @@ app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173'], allo
 app.mount('/assets', StaticFiles(directory=ROOT / 'results'), name='assets')
 PATIENT_IMAGES_DIR = ROOT / 'data' / 'pics'
 
+PATIENT_IMAGES_DIR = ROOT / "data" / "pics"
+
 if PATIENT_IMAGES_DIR.is_dir():
     app.mount(
-        '/patient-images',
-        StaticFiles(directory=PATIENT_IMAGES_DIR),
-        name='patient-images'
-    ), name='patient-images')
-
+        "/patient-images",
+        StaticFiles(directory=str(PATIENT_IMAGES_DIR)),
+        name="patient-images",
+    )
 
 def load_braces_model():
     html = (ROOT / 'web' / 'demo.html').read_text(encoding='utf-8')
