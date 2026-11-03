@@ -15,7 +15,14 @@ CLASSES = ['no_need', 'borderline', 'braces_likely']
 app = FastAPI(title='Dental AI Lab API', version='1.0.0')
 app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:5173'], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
 app.mount('/assets', StaticFiles(directory=ROOT / 'results'), name='assets')
-app.mount('/patient-images', StaticFiles(directory=ROOT / 'data' / 'pics'), name='patient-images')
+PATIENT_IMAGES_DIR = ROOT / 'data' / 'pics'
+
+if PATIENT_IMAGES_DIR.is_dir():
+    app.mount(
+        '/patient-images',
+        StaticFiles(directory=PATIENT_IMAGES_DIR),
+        name='patient-images'
+    ), name='patient-images')
 
 
 def load_braces_model():
